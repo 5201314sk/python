@@ -1,29 +1,51 @@
 # python
 
-单人校园网 ePortal 认证工具（交互菜单版）。
+校园网 ePortal 单人登录实现（Python 3）。
 
-> 仅用于**授权账号**。不包含批量探测/账号池测试功能。
+> 仅用于你有明确授权的账号与网络环境。请勿用于未授权账号测试、撞库或冒用登录。
 
-## 运行
+## 当前优先：命令行模式
 
 ```bash
-python3 single_login.py
+python3 single_login.py \
+  --index-url 'http://117.176.173.90/eportal/index.jsp?...' \
+  --username '你的账号' \
+  --password '你的密码' \
+  --check-online
 ```
 
-菜单：
+可选参数：
 
-1. 配置参数（`index_url/base_url/username/service/check_online`）
-2. 执行一次登录（输入密码，发起认证）
-3. 退出当前登录
+- `--base-url` 默认 `http://117.176.173.90/eportal/`
+- `--service` 手动指定服务名（不指定则自动选默认服务）
+- `--logout-after-check` 在查询在线状态后按 `userIndex` 执行下线
 
-配置会自动保存到 `config.json`。
+## 也支持非命令行调用
 
-## 已实现
+```python
+from single_login import LoginRequest, login_once
 
-- 先 `GET index_url` 建立 portal 上下文与 Cookie；
-- 复用同一会话调用 `pageInfo/getServices/login/getOnlineUserInfo/logout`；
-- 保留 portal 编码/加密逻辑（双重编码、`password + ">" + mac` 反转后 RSA）。
+req = LoginRequest(
+    base_url="http://117.176.173.90/eportal/",
+    index_url="http://117.176.173.90/eportal/index.jsp?...",
+    username="你的账号",
+    password="你的密码",
+)
 
-## 常见报错
+result = login_once(req, check_online=True)
+print(result.login_response)
+print(result.online_response)
+```
 
-若返回 NAT/IP 不匹配，请在**触发认证页面的同一设备/同一网络出口**运行。
+## 实现特性
+
+- 调用 `InterFace.do?method=pageInfo/getServices/login`
+- 复刻页面关键逻辑：
+  - `queryString` 双重编码
+  - 用户名双重编码
+  - `password + ">" + mac` 后反转并 RSA 加密（当 `passwordEncrypt=true`）
+
+## 说明
+
+1. `index_url` 要用**当次重定向**得到的完整链接（含 `wlanuserip/.../mac/...`）。
+2. 若页面开启验证码或运营商附加字段，本模块当前未交互处理这类分支。
